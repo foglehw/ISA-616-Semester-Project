@@ -1,0 +1,32 @@
+---
+title: "The Effect of Country Wide Factors on Citizen's Average Healthy Life Expectency"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview
+
+In this project linear regression models are used to attempt to explain the importance 
+of country wide factors on average healthy life expectancy(HLE) of citizens. This analysis has two objectives:
+
+1. Highlight relevant factors countries governments' need concern themselves with when balancing
+average HLE and authority. 
+2. Highlight relevant factors countries citizens' should focus on in order to maximize
+their HLE.
+
+Models created within this report are based on data provided by the World Happiness Report from 2020
+
+## Data Summary
+
+The data from the World Happiness Report of 2020 is stored in the following 26 variables: country name, year, happiness (Life Ladder), GDP per capita, social support, freedom to make life choices, generosity, perception of corruption, positive affect, negative affect, confidence in government, democratic quality, standard deviation of happiness by country year, standard deviation of mean happiness by country year, GINI index world bank estimate, GINI of household income, and most people can be trusted, and healthy healthy life expectancy. 
+
+A numeric value for happiness was obtained by asking surveyors to rank their current happiness on a scale from 0 to 10 and averaging the results. 
+
+Numeric values for social support, freedom to make life choices, generosity, confidence in national government, democratic quality, delivery quality, and perception of corruption were obtained by asking questions such as the following for freedom to make life choices, "Are you satisfied or dissatisfied with your freedom to choose what you do with your life?" and encoding yes or no responses as a 1 or a 0 respectively. The average of said responses is what populates the data. 
+
+Numeric data for positive and negative affect were obtained in a similar fashion, but with 3 questions rather than 1. 
+
+The variable most people can be trusted is split into the following increments: 1981-1984, 1989-1993, 1994-1998, 1999-2004, 2005-2009, and 2010-2014. The values populating these increments were gathered in similar ways to variables such as social support.
