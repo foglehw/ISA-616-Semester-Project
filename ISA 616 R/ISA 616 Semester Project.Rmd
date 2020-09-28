@@ -30,3 +30,49 @@ Numeric values for social support, freedom to make life choices, generosity, con
 Numeric data for positive and negative affect were obtained in a similar fashion, but with 3 questions rather than 1. 
 
 The variable most people can be trusted is split into the following increments: 1981-1984, 1989-1993, 1994-1998, 1999-2004, 2005-2009, and 2010-2014. The values populating these increments were gathered in similar ways to variables such as social support.
+
+## Data PreProcessing
+
+Before model comparison can occur, an analysis of data completeness and data relevancy must first occur. An output of data missingness follows:
+
+```{r dataLoad}
+library(DataExplorer)
+happy = read.csv("HappyData.csv")
+plot_missing(happy)
+```
+
+Reflecting on the fact that a large part of the purpose of these analysis is deducing the factors 
+that affect HLE from both perspectives, monitoring changes to the relevance of these factors over time is not included within the scope. With this in mind, variables that track these statistics, have a large portion of missing values, or both have been removed from the data set. These variables include The 8 variables that are track the whether most people can be trusted and the World Bank
+GINI Index estimate.
+
+
+```{r dataClean}
+library(dplyr)
+happy<-select(happy, -Most.people.can.be.trusted..Gallup)
+happy<-select(happy, -Most.people.can.be.trusted..WVS.round.1981.1984)
+happy<-select(happy, -Most.people.can.be.trusted..WVS.round.1989.1993)
+happy<-select(happy, -Most.people.can.be.trusted..WVS.round.1999.2004)
+happy<-select(happy, -Most.people.can.be.trusted..WVS.round.1994.1998)
+happy<-select(happy, -Most.people.can.be.trusted..WVS.round.2010.2014)
+happy<-select(happy, -Most.people.can.be.trusted..WVS.round.2005.2009)
+happy<-select(happy, -GINI.index..World.Bank.estimate.)
+```
+
+Variables with an acceptable level of missing values, under 50%, are to have values missing values imputed by filling in blank values with the mean. Variables that fall under this category are Social Support, Negative Affect, Positive Affect, Log GPD per Capita, Freedom to Make Life Choices, HLE at birth, Generosity, Perceptions of Corruption, Delivery Quality, Democratic Quality, GINI Index World Bank Estimate Average 2000-2017, Confidence in National Government, and GINI of Household Income Reported in Gallup by WP5 Year. Though there are values within this data set that still slice by time, INI Index World Bank Estimate Average 2000-2017 and GINI of Household Income Reported in Gallup by WP5 Year, they aggregate more than just 1 years worth of data and as such can still be useful to the analysis. 
+
+```{r impute}
+happy$Social.support[is.na(happy$Social.support)]<-median(happy$Social.support, na.rm = TRUE)
+happy$Negative.affect[is.na(happy$Negative.affect)]<-median(happy$Negative.affect, na.rm = TRUE)
+happy$Positive.affect[is.na(happy$Positive.affect)]<-median(happy$Positive.affect, na.rm = TRUE)
+happy$Log.GDP.per.capita[is.na(happy$Log.GDP.per.capita)]<-median(happy$Log.GDP.per.capita, na.rm = TRUE)
+happy$Freedom.to.make.life.choices[is.na(happy$Freedom.to.make.life.choices)]<-median(happy$Social.support, na.rm = TRUE)
+happy$Healthy.life.expectancy.at.birth[is.na(happy$Healthy.life.expectancy.at.birth)]<-median(happy$Healthy.life.expectancy.at.birth, na.rm = TRUE)
+happy$Generosity[is.na(happy$Generosity)]<-median(happy$Generosity, na.rm = TRUE)
+happy$Perceptions.of.corruption[is.na(happy$Perceptions.of.corruption)]<-median(happy$Perceptions.of.corruption, na.rm = TRUE)
+happy$Delivery.Quality[is.na(happy$Delivery.Quality)]<-median(happy$Delivery.Quality, na.rm = TRUE)
+happy$Democratic.Quality[is.na(happy$Democratic.Quality)]<-median(happy$Democratic.Quality, na.rm = TRUE)
+happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel[is.na(happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel)]<-median(happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel, na.rm = TRUE)
+happy$Confidence.in.national.government[is.na(happy$Confidence.in.national.government)]<-median(happy$Confidence.in.national.government, na.rm = TRUE)
+happy$gini.of.household.income.reported.in.Gallup..by.wp5.year[is.na(happy$gini.of.household.income.reported.in.Gallup..by.wp5.year)]<-median(happy$gini.of.household.income.reported.in.Gallup..by.wp5.year, na.rm = TRUE)
+plot_missing(happy)
+```
