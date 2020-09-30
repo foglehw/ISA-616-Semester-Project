@@ -37,7 +37,7 @@ Before model comparison can occur, an analysis of data completeness and data rel
 
 ```{r dataLoad}
 library(DataExplorer)
-happy = read.csv("HappyData.csv")
+happy = read.csv("HappyData.csv", stringsAsFactors = TRUE)
 plot_missing(happy)
 ```
 
@@ -60,6 +60,8 @@ happy<-select(happy, -GINI.index..World.Bank.estimate.)
 
 Variables with an acceptable level of missing values, under 50%, are to have values missing values imputed by filling in blank values with the mean. Variables that fall under this category are Social Support, Negative Affect, Positive Affect, Log GPD per Capita, Freedom to Make Life Choices, HLE at birth, Generosity, Perceptions of Corruption, Delivery Quality, Democratic Quality, GINI Index World Bank Estimate Average 2000-2017, Confidence in National Government, and GINI of Household Income Reported in Gallup by WP5 Year. Though there are values within this data set that still slice by time, INI Index World Bank Estimate Average 2000-2017 and GINI of Household Income Reported in Gallup by WP5 Year, they aggregate more than just 1 years worth of data and as such can still be useful to the analysis. 
 
+
+
 ```{r impute}
 happy$Social.support[is.na(happy$Social.support)]<-median(happy$Social.support, na.rm = TRUE)
 happy$Negative.affect[is.na(happy$Negative.affect)]<-median(happy$Negative.affect, na.rm = TRUE)
@@ -74,5 +76,98 @@ happy$Democratic.Quality[is.na(happy$Democratic.Quality)]<-median(happy$Democrat
 happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel[is.na(happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel)]<-median(happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel, na.rm = TRUE)
 happy$Confidence.in.national.government[is.na(happy$Confidence.in.national.government)]<-median(happy$Confidence.in.national.government, na.rm = TRUE)
 happy$gini.of.household.income.reported.in.Gallup..by.wp5.year[is.na(happy$gini.of.household.income.reported.in.Gallup..by.wp5.year)]<-median(happy$gini.of.household.income.reported.in.Gallup..by.wp5.year, na.rm = TRUE)
+```
+
+```{r}
+library(countrycode)
+happy$continent <- countrycode(sourcevar = happy[, "Country.name"],
+                            origin = "country.name",
+                            destination = "continent")
+happy$continent <- as.factor(happy$continent)
+happy[is.na(happy)] <- "Europe"
+happy <- select(happy, -Country.name)
 plot_missing(happy)
+```
+
+## Model Creation
+
+```{r ModelPrep}
+set.seed(5)
+trainIndex = sample(1:nrow(happy), size = round(0.7*nrow(happy)), replace=FALSE)
+happy.train = happy[trainIndex, ]
+happy.valid = happy[-trainIndex, ]
+f = formula(Healthy.life.expectancy.at.birth~.)
+f.interactions = formula(Healthy.life.expectancy.at.birth~(.)^2)
+null<-lm(Healthy.life.expectancy.at.birth~1, data=happy.train)
+full<-lm(f, data=happy.train)
+full.interaction<-lm(f.interactions, data=happy.train)
+```
+
+```{r StepWiseForward}
+forward.happy = step(null, scope=list(lower=null, upper=full), direction = "forward", trace=0, k=2)
+forward.happy.interaction = step(null, scope=list(lower=null, upper=full.interaction), direction = "forward", trace=0, k=2)
+```
+
+```{r StepWiseBackward}
+backward.happy = step(full, scope=list(lower=null, upper=full), direction = "backward", trace=0, k=2)
+backward.happy.interaction = step(full.interaction, scope=list(lower=null, upper=full.interaction), direction = "backward", trace=0, k=2)
+```
+
+```{r StepWiseBoth}
+both.happy = step(null, scope=list(lower=null, upper=full), direction = "both", trace=0, k=2)
+both.happy.interaction = step(null, scope=list(lower=null, upper=full.interaction), direction = "both", trace=0, k=2)
+```
+
+```{r ForwardModelComparison}
+forward.predict = as.data.frame(predict(forward.happy, happy.valid, interval = "prediction"))
+r2valid.forward<-sum((happy.valid$Healthy.life.expectancy.at.birth-forward.predict$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.forward=1-r2valid.forward
+ase.forward<-sum((happy.valid$Healthy.life.expectancy.at.birth-forward.predict$fit)^2)/nrow(happy.valid)
+
+forward.predict.interaction = as.data.frame(predict(forward.happy.interaction, happy.valid, interval = "prediction"))
+r2valid.forward.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-forward.predict.interaction$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.forward.interaction=1-r2valid.forward.interaction
+ase.forward.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-forward.predict.interaction$fit)^2)/nrow(happy.valid)
+```
+
+```{r BackwardModelComparison}
+backward.predict = as.data.frame(predict(backward.happy, happy.valid, interval = "prediction"))
+r2valid.backward<-sum((happy.valid$Healthy.life.expectancy.at.birth-backward.predict$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.backward=1-r2valid.backward
+ase.backward<-sum((happy.valid$Healthy.life.expectancy.at.birth-backward.predict$fit)^2)/nrow(happy.valid)
+
+backward.predict.interaction = as.data.frame(predict(backward.happy.interaction, happy.valid, interval = "prediction"))
+r2valid.backward.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-backward.predict.interaction$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.backward.interaction=1-r2valid.backward.interaction
+ase.backward.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-backward.predict.interaction$fit)^2)/nrow(happy.valid)
+```
+
+```{r BothModelComparison}
+both.predict = as.data.frame(predict(both.happy, happy.valid, interval = "prediction"))
+r2valid.both<-sum((happy.valid$Healthy.life.expectancy.at.birth-both.predict$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.both=1-r2valid.both
+ase.both<-sum((happy.valid$Healthy.life.expectancy.at.birth-both.predict$fit)^2)/nrow(happy.valid)
+
+both.predict.interaction = as.data.frame(predict(both.happy.interaction, happy.valid, interval = "prediction"))
+r2valid.both.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-both.predict.interaction$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.both.interaction=1-r2valid.both.interaction
+ase.both.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-both.predict.interaction$fit)^2)/nrow(happy.valid)
+```
+
+``` {r DisplayModelComplexity}
+library(ggplot2)
+df <- data.frame (R2  = c(r2valid.forward, r2valid.forward.interaction, r2valid.backward, r2valid.backward.interaction, r2valid.both, r2valid.both.interaction),
+                  ASE = c(ase.forward, ase.forward.interaction, ase.backward, ase.backward.interaction, ase.both, ase.backward.interaction),
+                  NumOfVariables = c(length(forward.happy$coefficients), length(forward.happy.interaction$coefficients), length(backward.happy$coefficients), length(backward.happy.interaction$coefficients), length(both.happy$coefficients), length(both.happy.interaction$coefficients)),
+                  ModelType = factor(c("Forward", "Forward Interaction", "Backward", "Backward Interaction", "Both", "Both Interaction"), levels=c("Forward", "Forward Interaction", "Backward", "Backward Interaction", "Both", "Both Interaction"))
+                  )
+
+ggplot(data=df, aes(x=ModelType, y=R2, fill=ModelType)) +
+    geom_bar(stat="identity")
+
+ggplot(data=df, aes(x=ModelType, y=ASE, fill=ModelType)) +
+    geom_bar(stat="identity")
+
+ggplot(data=df, aes(x=ModelType, y=NumOfVariables, fill=ModelType)) +
+    geom_bar(stat="identity")
 ```
