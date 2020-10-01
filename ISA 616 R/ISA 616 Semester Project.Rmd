@@ -1,16 +1,24 @@
 ---
-title: "The Effect of Country Wide Factors on Citizen's Average Healthy Life Expectency"
-output: html_document
+title: "An Analysis of Relevant Factors on Citizen's Average Healthy Life Expectency At Birth"
+output: 
+  html_document: 
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r libraryLoads, message=FALSE}
+library(DataExplorer)
+library(dplyr)
+library(imputeR)
+library(ggplot2)
+```
+
 ## Project Overview
 
-In this project linear regression models are used to attempt to explain the importance 
-of country wide factors on average healthy life expectancy(HLE) of citizens. This analysis has two objectives:
+In this project linear regression models are used to attempt to highlight the influence, negative or positive, of given factors in reference to how they affect average healthy life expectancy at birth. With that information, this analysis has two objectives:
 
 1. Highlight relevant factors countries governments' need concern themselves with when balancing
 average HLE and authority. 
@@ -19,155 +27,188 @@ their HLE.
 
 Models created within this report are based on data provided by the World Happiness Report from 2020
 
+Code used to complete this analysis can be displayed by clicking on the many buttons labeled code.
+
 ## Data Summary
 
-The data from the World Happiness Report of 2020 is stored in the following 26 variables: country name, year, happiness (Life Ladder), GDP per capita, social support, freedom to make life choices, generosity, perception of corruption, positive affect, negative affect, confidence in government, democratic quality, standard deviation of happiness by country year, standard deviation of mean happiness by country year, GINI index world bank estimate, GINI of household income, and most people can be trusted, and healthy healthy life expectancy. 
+The data used in this analysis from the World Happiness Report of 2020 consist of the following 13 variables: Life ladder, log GDP per capita, social support, freedom to make life choices, generosity, perception of corruption, positive affect, negative affect, confidence in government, democratic quality, delivery quality, GINI index world bank estimate, and healthy healthy life expectancy. Reasons for not using other factors provided by the report are outlined in the section Data Preprocessing. 
 
-A numeric value for happiness was obtained by asking surveyors to rank their current happiness on a scale from 0 to 10 and averaging the results. 
+Life ladder, or happiness, is numeric value ranging from 0 to 10 by taking the average response to to the question, “Please imagine a ladder, with steps numbered from 0 at the bottom to 10 at the top. The top of the ladder represents the best possible life for you and the bottom of the ladder represents the worst possible life for you. On which step of the ladder would you say you personally feel you stand at this time?”. 
 
-Numeric values for social support, freedom to make life choices, generosity, confidence in national government, democratic quality, delivery quality, and perception of corruption were obtained by asking questions such as the following for freedom to make life choices, "Are you satisfied or dissatisfied with your freedom to choose what you do with your life?" and encoding yes or no responses as a 1 or a 0 respectively. The average of said responses is what populates the data. 
+Social support, freedom to make life choices, generosity, confidence in national government and perception of corruption are numeric values ranging from 0 to 1. Values were obtained were obtained by asking questions such as the following for freedom to make life choices, "Are you satisfied or dissatisfied with your freedom to choose what you do with your life?", extracting a binary response with yes being equal to 1 and no being equal to 0, and taking the average of responses.
 
-Numeric data for positive and negative affect were obtained in a similar fashion, but with 3 questions rather than 1. 
+Positive and negative affect refer to numeric data ranging in value from 0 to 1. Values were obtained in a similar fashion to social support, but with 3 questions rather than 1. 
 
-The variable most people can be trusted is split into the following increments: 1981-1984, 1989-1993, 1994-1998, 1999-2004, 2005-2009, and 2010-2014. The values populating these increments were gathered in similar ways to variables such as social support.
+Democratic quality refers to access to power including factors such as the ability to participate in selecting the government, freedom of expression, freedom of association, and political stability. Delivery quality refers to  the exercise of power, including the rule of law, control of corruption, regulatory quality, and government effectiveness
+
+Gini index world bank estimate is the average value for GINI index of a country for years ranging from 2000 to 2017.
 
 ## Data PreProcessing
 
-Before model comparison can occur, an analysis of data completeness and data relevancy must first occur. An output of data missingness follows:
+Prior to modeling, an evaluation of data relevance to the analysis question as well as evaluation of missing values within the data must occur.  
 
 ```{r dataLoad}
-library(DataExplorer)
 happy = read.csv("HappyData.csv", stringsAsFactors = TRUE)
+```
+
+After loading in data provided by the report, an evaluation of missing data is provided to help elucidate which variables should be removed and which should be imputed. 
+
+```{r checkMissing}
 plot_missing(happy)
 ```
 
-Reflecting on the fact that a large part of the purpose of these analysis is deducing the factors 
-that affect HLE from both perspectives, monitoring changes to the relevance of these factors over time is not included within the scope. With this in mind, variables that track these statistics, have a large portion of missing values, or both have been removed from the data set. These variables include The 8 variables that are track the whether most people can be trusted and the World Bank
-GINI Index estimate.
+### Data removal
 
+When removing variables from the data it is important to consider more than just the missing values within that data. As the main purpose of the of analysis is highlighting the important factors that expect the healthy life expectancy at birth, variables that contribute to more granular analysis, such as time factors, have been removed to allow for an easily interpreted model. For reasons of contributions of granularity or high percentage of missing data, the following variables have been removed: all variables relating to Most people can be trusted, year, standard deviation of ladder by country year, standard deviation mean of ladder by country year, and gini of household income reporting in Gallup by wp5 year, country name.
 
-```{r dataClean}
-library(dplyr)
-happy<-select(happy, -Most.people.can.be.trusted..Gallup)
-happy<-select(happy, -Most.people.can.be.trusted..WVS.round.1981.1984)
-happy<-select(happy, -Most.people.can.be.trusted..WVS.round.1989.1993)
-happy<-select(happy, -Most.people.can.be.trusted..WVS.round.1999.2004)
-happy<-select(happy, -Most.people.can.be.trusted..WVS.round.1994.1998)
-happy<-select(happy, -Most.people.can.be.trusted..WVS.round.2010.2014)
-happy<-select(happy, -Most.people.can.be.trusted..WVS.round.2005.2009)
-happy<-select(happy, -GINI.index..World.Bank.estimate.)
+```{r DataRemoval}
+happy<-select(happy, -Most.people.can.be.trusted..Gallup, -Most.people.can.be.trusted..WVS.round.1981.1984, -Most.people.can.be.trusted..WVS.round.1989.1993, -Most.people.can.be.trusted..WVS.round.1999.2004, -Most.people.can.be.trusted..WVS.round.1994.1998, -Most.people.can.be.trusted..WVS.round.2010.2014, -Most.people.can.be.trusted..WVS.round.2005.2009, -year, -Country.name, -Standard.deviation.Mean.of.ladder.by.country.year, -Standard.deviation.of.ladder.by.country.year, -gini.of.household.income.reported.in.Gallup..by.wp5.year, -GINI.index..World.Bank.estimate.)
 ```
 
-Variables with an acceptable level of missing values, under 50%, are to have values missing values imputed by filling in blank values with the mean. Variables that fall under this category are Social Support, Negative Affect, Positive Affect, Log GPD per Capita, Freedom to Make Life Choices, HLE at birth, Generosity, Perceptions of Corruption, Delivery Quality, Democratic Quality, GINI Index World Bank Estimate Average 2000-2017, Confidence in National Government, and GINI of Household Income Reported in Gallup by WP5 Year. Though there are values within this data set that still slice by time, INI Index World Bank Estimate Average 2000-2017 and GINI of Household Income Reported in Gallup by WP5 Year, they aggregate more than just 1 years worth of data and as such can still be useful to the analysis. 
+## Imputation
 
+For the variables not removed, imputation was necessary to allow model creation. This imputation was done by extracting the median of variables containing missing observations and inserting said median into the holes. The results is data with no missing values.
 
-
-```{r impute}
-happy$Social.support[is.na(happy$Social.support)]<-median(happy$Social.support, na.rm = TRUE)
-happy$Negative.affect[is.na(happy$Negative.affect)]<-median(happy$Negative.affect, na.rm = TRUE)
-happy$Positive.affect[is.na(happy$Positive.affect)]<-median(happy$Positive.affect, na.rm = TRUE)
-happy$Log.GDP.per.capita[is.na(happy$Log.GDP.per.capita)]<-median(happy$Log.GDP.per.capita, na.rm = TRUE)
-happy$Freedom.to.make.life.choices[is.na(happy$Freedom.to.make.life.choices)]<-median(happy$Social.support, na.rm = TRUE)
-happy$Healthy.life.expectancy.at.birth[is.na(happy$Healthy.life.expectancy.at.birth)]<-median(happy$Healthy.life.expectancy.at.birth, na.rm = TRUE)
-happy$Generosity[is.na(happy$Generosity)]<-median(happy$Generosity, na.rm = TRUE)
-happy$Perceptions.of.corruption[is.na(happy$Perceptions.of.corruption)]<-median(happy$Perceptions.of.corruption, na.rm = TRUE)
-happy$Delivery.Quality[is.na(happy$Delivery.Quality)]<-median(happy$Delivery.Quality, na.rm = TRUE)
-happy$Democratic.Quality[is.na(happy$Democratic.Quality)]<-median(happy$Democratic.Quality, na.rm = TRUE)
-happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel[is.na(happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel)]<-median(happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel, na.rm = TRUE)
-happy$Confidence.in.national.government[is.na(happy$Confidence.in.national.government)]<-median(happy$Confidence.in.national.government, na.rm = TRUE)
-happy$gini.of.household.income.reported.in.Gallup..by.wp5.year[is.na(happy$gini.of.household.income.reported.in.Gallup..by.wp5.year)]<-median(happy$gini.of.household.income.reported.in.Gallup..by.wp5.year, na.rm = TRUE)
+```{r Impute}
+happy$Social.support= guess(happy$Social.support, type = "median")
+happy$Negative.affect = guess(happy$Negative.affect, type = "median")
+happy$Positive.affect = guess(happy$Positive.affect, type = "median")
+happy$Log.GDP.per.capita = guess(happy$Log.GDP.per.capita, type = "median")
+happy$Freedom.to.make.life.choices = guess(happy$Freedom.to.make.life.choices, type = "median")
+happy$Healthy.life.expectancy.at.birth = guess(happy$Healthy.life.expectancy.at.birth, type = "median")
+happy$Generosity = guess(happy$Generosity, type = "median")
+happy$Perceptions.of.corruption = guess(happy$Perceptions.of.corruption, type = "median")
+happy$Delivery.Quality = guess(happy$Delivery.Quality, type = "median")
+happy$Democratic.Quality = guess(happy$Democratic.Quality, type = "median")
+happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel = guess(happy$GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel, type = "median")
+happy$Confidence.in.national.government = guess(happy$Confidence.in.national.government, type = "median")
 ```
 
-```{r}
-library(countrycode)
-happy$continent <- countrycode(sourcevar = happy[, "Country.name"],
-                            origin = "country.name",
-                            destination = "continent")
-happy$continent <- as.factor(happy$continent)
-happy[is.na(happy)] <- "Europe"
-happy <- select(happy, -Country.name)
-plot_missing(happy)
+Finally, for the sake of conciseness, the variable healthy life expectancy at birth was shortened to HLE at birth and the variable GINI index world bank estimate average 2000 2017 unbalanced panel was shortened to GINI WBE
+
+```{r friendlyNames}
+colnames(happy)[colnames(happy) == "Healthy.life.expectancy.at.birth"] <- "HLE.at.birth"
+colnames(happy)[colnames(happy) == "GINI.index..World.Bank.estimate...average.2000.2017..unbalanced.panel" ] <- "GINI.WBE"
 ```
 
-## Model Creation
+## Model Creation 
 
-```{r ModelPrep}
+Following data processing, the data was split for validation in a ratio of 7:3 for training and validation respectfully. Linear models were created via stepwise evaluation of AIC going in forward, backwards and both directions. Simple models included the option of the every variable besides healthy life expectancy at birth. More complex models allowed the possibility of interactions between all 12 of these variables.
+
+```{r ModelsCreation}
 set.seed(5)
+
 trainIndex = sample(1:nrow(happy), size = round(0.7*nrow(happy)), replace=FALSE)
 happy.train = happy[trainIndex, ]
 happy.valid = happy[-trainIndex, ]
-f = formula(Healthy.life.expectancy.at.birth~.)
-f.interactions = formula(Healthy.life.expectancy.at.birth~(.)^2)
-null<-lm(Healthy.life.expectancy.at.birth~1, data=happy.train)
+
+f = formula(HLE.at.birth~.)
+f.interactions = formula(HLE.at.birth~(.)^2)
+null<-lm(HLE.at.birth~1, data=happy.train)
 full<-lm(f, data=happy.train)
 full.interaction<-lm(f.interactions, data=happy.train)
-```
 
-```{r StepWiseForward}
 forward.happy = step(null, scope=list(lower=null, upper=full), direction = "forward", trace=0, k=2)
 forward.happy.interaction = step(null, scope=list(lower=null, upper=full.interaction), direction = "forward", trace=0, k=2)
-```
 
-```{r StepWiseBackward}
 backward.happy = step(full, scope=list(lower=null, upper=full), direction = "backward", trace=0, k=2)
 backward.happy.interaction = step(full.interaction, scope=list(lower=null, upper=full.interaction), direction = "backward", trace=0, k=2)
-```
 
-```{r StepWiseBoth}
 both.happy = step(null, scope=list(lower=null, upper=full), direction = "both", trace=0, k=2)
 both.happy.interaction = step(null, scope=list(lower=null, upper=full.interaction), direction = "both", trace=0, k=2)
 ```
 
-```{r ForwardModelComparison}
+## Model Evaluation {.tabset .tabset-pills}
+
+The performance of all six models was evaluated via comparison of R^2 values. A second criteria was used in the comparison of number of variables comprising the models. 
+
+```{r ModelsComparison}
 forward.predict = as.data.frame(predict(forward.happy, happy.valid, interval = "prediction"))
-r2valid.forward<-sum((happy.valid$Healthy.life.expectancy.at.birth-forward.predict$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.forward<-sum((happy.valid$HLE.at.birth-forward.predict$fit)^2)/sum((happy.valid$HLE.at.birth-mean(happy.valid$HLE.at.birth))^2)
 r2valid.forward=1-r2valid.forward
-ase.forward<-sum((happy.valid$Healthy.life.expectancy.at.birth-forward.predict$fit)^2)/nrow(happy.valid)
 
 forward.predict.interaction = as.data.frame(predict(forward.happy.interaction, happy.valid, interval = "prediction"))
-r2valid.forward.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-forward.predict.interaction$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.forward.interaction<-sum((happy.valid$HLE.at.birth-forward.predict.interaction$fit)^2)/sum((happy.valid$HLE.at.birth-mean(happy.valid$HLE.at.birth))^2)
 r2valid.forward.interaction=1-r2valid.forward.interaction
-ase.forward.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-forward.predict.interaction$fit)^2)/nrow(happy.valid)
-```
 
-```{r BackwardModelComparison}
 backward.predict = as.data.frame(predict(backward.happy, happy.valid, interval = "prediction"))
-r2valid.backward<-sum((happy.valid$Healthy.life.expectancy.at.birth-backward.predict$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.backward<-sum((happy.valid$HLE.at.birth-backward.predict$fit)^2)/sum((happy.valid$HLE.at.birth-mean(happy.valid$HLE.at.birth))^2)
 r2valid.backward=1-r2valid.backward
-ase.backward<-sum((happy.valid$Healthy.life.expectancy.at.birth-backward.predict$fit)^2)/nrow(happy.valid)
 
 backward.predict.interaction = as.data.frame(predict(backward.happy.interaction, happy.valid, interval = "prediction"))
-r2valid.backward.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-backward.predict.interaction$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.backward.interaction<-sum((happy.valid$HLE.at.birth-backward.predict.interaction$fit)^2)/sum((happy.valid$HLE.at.birth-mean(happy.valid$HLE.at.birth))^2)
 r2valid.backward.interaction=1-r2valid.backward.interaction
-ase.backward.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-backward.predict.interaction$fit)^2)/nrow(happy.valid)
-```
 
-```{r BothModelComparison}
 both.predict = as.data.frame(predict(both.happy, happy.valid, interval = "prediction"))
-r2valid.both<-sum((happy.valid$Healthy.life.expectancy.at.birth-both.predict$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.both<-sum((happy.valid$HLE.at.birth-both.predict$fit)^2)/sum((happy.valid$HLE.at.birth-mean(happy.valid$HLE.at.birth))^2)
 r2valid.both=1-r2valid.both
-ase.both<-sum((happy.valid$Healthy.life.expectancy.at.birth-both.predict$fit)^2)/nrow(happy.valid)
 
 both.predict.interaction = as.data.frame(predict(both.happy.interaction, happy.valid, interval = "prediction"))
-r2valid.both.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-both.predict.interaction$fit)^2)/sum((happy.valid$Healthy.life.expectancy.at.birth-mean(happy.valid$Healthy.life.expectancy.at.birth))^2)
+r2valid.both.interaction<-sum((happy.valid$HLE.at.birth-both.predict.interaction$fit)^2)/sum((happy.valid$HLE.at.birth-mean(happy.valid$HLE.at.birth))^2)
 r2valid.both.interaction=1-r2valid.both.interaction
-ase.both.interaction<-sum((happy.valid$Healthy.life.expectancy.at.birth-both.predict.interaction$fit)^2)/nrow(happy.valid)
 ```
 
-``` {r DisplayModelComplexity}
-library(ggplot2)
+```{r }
 df <- data.frame (R2  = c(r2valid.forward, r2valid.forward.interaction, r2valid.backward, r2valid.backward.interaction, r2valid.both, r2valid.both.interaction),
-                  ASE = c(ase.forward, ase.forward.interaction, ase.backward, ase.backward.interaction, ase.both, ase.backward.interaction),
+                  
                   NumOfVariables = c(length(forward.happy$coefficients), length(forward.happy.interaction$coefficients), length(backward.happy$coefficients), length(backward.happy.interaction$coefficients), length(both.happy$coefficients), length(both.happy.interaction$coefficients)),
-                  ModelType = factor(c("Forward", "Forward Interaction", "Backward", "Backward Interaction", "Both", "Both Interaction"), levels=c("Forward", "Forward Interaction", "Backward", "Backward Interaction", "Both", "Both Interaction"))
-                  )
-
-ggplot(data=df, aes(x=ModelType, y=R2, fill=ModelType)) +
-    geom_bar(stat="identity")
-
-ggplot(data=df, aes(x=ModelType, y=ASE, fill=ModelType)) +
-    geom_bar(stat="identity")
-
-ggplot(data=df, aes(x=ModelType, y=NumOfVariables, fill=ModelType)) +
-    geom_bar(stat="identity")
+                  ModelType = factor(c("Forward", "ForwardInteraction", "Backward", "BackwardInteraction", "Both", "BothInteraction"), levels=c("Forward", "ForwardInteraction", "Backward", "BackwardInteraction", "Both", "BothInteraction")))
 ```
+
+Using R^2 as a basis for analysis, all three models that included interactions terms performed equally better than all three without. However, when comparing the amount of variables contained within the models, the models containing interactions terms are more complex. Considering purpose of this analysis is to highlight important factors to citizens and governmental employees who may lack analytics training, an easier to interpret model is more desirable than a slightly more accurate one. Because all 3 models that lack interaction terms are resulted in the same chosen set of variables, the model resulting from stepwise in both direction was chosen for further analysis.
+
+### R2
+
+```{r R2Comparison}
+ggplot(data=df, aes(x=ModelType, y=R2, fill=ModelType)) +
+    geom_bar(aes(fill = ModelType), stat="identity") +
+    geom_text(aes(x = ModelType, y = R2, label = round(R2,digits=2))) + 
+    theme(axis.text.x=element_blank(), 
+          axis.title.x=element_blank())
+```
+
+### NumberofVariables
+
+```{r NumberOfVariablesComparison}
+ggplot(data=df, aes(x=ModelType, y=NumOfVariables, fill=ModelType)) +
+    geom_bar(aes(fill = ModelType), stat="identity") +
+    geom_text(aes(x = ModelType, y = NumOfVariables, label = round(NumOfVariables,digits=2))) + 
+    theme(axis.text.x=element_blank(), 
+          axis.title.x=element_blank())
+```
+
+## Summary of Results {.tabset .tabset-pills}
+
+The following graphs display the variables that positively and negatively affect healthy life expectancy at birth at respectively. The values within these charts can easily be interpreted in the following way: "For any given variable x, a one unit increase would result in an Estimate increase in estimated healthy life expectancy at birth provided all other variables are held constant." Following this easy to use interpretation, citizens and politicians can clearly see the which variables have the largest impact on estimated healthy life expectancy at birth and make choices to affect it accordingly.
+
+```{r FactorSeperation}
+happy.summary = as.data.frame(summary(both.happy)$coefficients)
+positive.factors = happy.summary %>% filter(Estimate > 0)
+positive.factors$variables <- row.names(positive.factors)
+
+positive.factors = positive.factors[-1,]
+
+negative.factors = happy.summary %>% filter(Estimate < 0)
+negative.factors$variables <- row.names(negative.factors)
+```
+
+### Positive
+
+```{r PositiveFactors}
+ggplot(data=positive.factors, aes(x=variables, y=Estimate, fill=variables)) +
+    geom_bar(stat="identity")+
+    geom_text(aes(x = variables, y = Estimate, label = round(Estimate,digits=2))) + 
+    theme(axis.text.x=element_blank(), 
+          axis.title.x=element_blank())
+```
+
+### Negative
+
+```{r NegativeFactors}
+ggplot(data=negative.factors, aes(x=variables, y=Estimate, fill=variables)) +
+    geom_bar(stat="identity")+
+    geom_text(aes(x = variables, y = Estimate, label = round(Estimate,digits=2))) + 
+    theme(axis.text.x=element_blank(), 
+          axis.title.x=element_blank())
+```
+
